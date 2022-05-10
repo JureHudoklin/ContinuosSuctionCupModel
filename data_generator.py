@@ -5,19 +5,10 @@ import random
 import tensorflow as tf
 import numpy as np
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(BASE_DIR)
-sys.path.append(os.path.join(BASE_DIR, 'pointnet2-tensorflow2'))
-from pnet2_layers.cpp_modules import knn_point
+from trimeshVisualize import Scene
 
-sys.path.append(os.path.join(BASE_DIR, 'scene_render'))
-import point_cloud_reader as pcr
-import create_table_top_scene as create_scene
-import render_utils
-
-
-sys.path.append(os.path.join(BASE_DIR, 'SuctionModel'))
-import SuctionModel.suction_cup_imaging as sci
+import scene_render.point_cloud_reader as pcr
+import scene_render.create_table_top_scene as create_scene
 
 
 class DataGenerator(tf.keras.utils.Sequence):

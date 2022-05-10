@@ -11,7 +11,7 @@ from scene_render.render_utils import network_out_tf
 
 from network.config import Config
 from network.suction_graspnet import * #SuctionGraspNet, build_suction_pointnet_graph
-from scene_render.data_generator import DataGenerator
+from data_generator import DataGenerator
 from scene_render.create_table_top_scene import TableScene
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

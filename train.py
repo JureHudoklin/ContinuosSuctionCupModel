@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from network.config import Config
 from network.suction_graspnet import SuctionGraspNet, build_suction_pointnet_graph
-from scene_render.data_generator import DataGenerator
+from data_generator import DataGenerator
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
