@@ -1,0 +1,9 @@
+coef_friction: 0.5
+d_0: 60
+k_bm: 0.011
+k_def: 2.9892
+lip_area: 450
+max_deformation: 10
+per_points: 60
+perimiter_smoothing: 1
+r: 17.6
