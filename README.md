@@ -4,7 +4,7 @@
    - python3 >= 3.6
    - tensorflow >= 2.3.0
 
-## Install
+## Installation
 1. Install Triemsh Visualize Wrapper
    - Clone the repository from: https://github.com/JureHudoklin/trimesh_visualize
    - Follow the Installation procedure in the repository
@@ -18,4 +18,7 @@
 5. Install other requirements
    - run: ```pip install -r requirements.txt```
 
+## Usage
+
+## Examples
     
