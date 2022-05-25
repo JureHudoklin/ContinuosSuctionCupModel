@@ -21,4 +21,6 @@
 ## Usage
 
 ## Examples
+
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/conTv7kHwe8/0.jpg)](http://www.youtube.com/watch?v=conTv7kHwe8 "Suction Grasp Net + Contact Grasp Net - Bin Picking")
     
