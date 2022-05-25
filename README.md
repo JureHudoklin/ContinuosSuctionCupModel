@@ -97,6 +97,6 @@ Below are a few examples of how the code can be used
    
 - Model analysis performed by the Continuous Suction Cup Model:
 
-    ![Object Evaluation](images/EvaluatedObject.jpg)
+    ![Object Evaluation](images/EvaluatedObject.png)
 
     
