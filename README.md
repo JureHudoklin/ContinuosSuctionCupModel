@@ -85,6 +85,16 @@ Below are a few examples of how the code can be used
 
 - To generate 3D pointcloud scenes you can use data_generator.py
 - If you would like to access the dataset please contact me at: jure.hudoklin97@gmail.com
+- If you use our code please cite our article:
+    ```
+    @article{hudoklin2022vacuum,
+    title={Vacuum Suction Cup Modeling for Evaluation of Sealing and Real-timeSimulation},
+    author={Hudoklin, Jure and Seo, Sungwon and Kang, Minseok and Seong, Haejoon and Luong, Anh Tuan and Moon, Hyungpil},
+    journal={IEEE Robotics and Automation Letters},
+    year={2022},
+    publisher={IEEE}
+    }
+    ```
 
 ### Suction Grasp Net
 - \<In progress>
