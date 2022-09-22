@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import trimesh
 import numpy as np
 import tensorflow as tf
-from copy import deepcopy
+import copy
 
 
 def show_image(data, segmap = None):
@@ -33,10 +33,15 @@ def show_image(data, segmap = None):
 def inverse_transform(trans):
     """
     Computes the inverse of 4x4 transform.
+    
     Arguments:
-        trans {np.ndarray} -- 4x4 transform.
+    --------
+    trans {np.ndarray} -- 4x4 transform.
+        
+       
     Returns:
-        [np.ndarray] -- inverse 4x4 transform
+    --------
+    [np.ndarray] -- inverse 4x4 transform
     """
     rot = trans[:3, :3]
     t = trans[:3, 3]
@@ -55,16 +60,15 @@ def network_out_tf(pc, app, tf_cam, inverse = False):
     Transforms point cloud and approach vector between frames given a transform.
     ----------
     Arguments:
-        pc {tf.tensor} -- BxNX3 point cloud
-        app {tf.tensor} -- BxNX3 approach vector
+        pc {tf.tensor} -- BxNx3 point cloud
+        app {tf.tensor} -- BxNx3 approach vector
         tf_cam {np.ndarray} -- Bx4x4 transform
     Keyword Arguments:
         inverse {bool} -- if True, inverse transform is applied (default: {False})
     ----------
     Returns:
-        [tf.tensor] -- BxNX3 point cloud
-        [tf.tensor] -- BxNX3 approach vector
-
+        [tf.tensor] -- BxNx3 point cloud
+        [tf.tensor] -- BxNx3 approach vector
     """
     pc_temp = pc.numpy()
     app_temp = app.numpy()
@@ -127,3 +131,78 @@ class Object(object):
         :return: boolean value
         """
         return self.collision_manager.in_collision_single(mesh, transform=transform)
+
+
+def transform_grasp(grasp_dict, tf, scale_to_millimeters = True, add_transform_score = True):
+    """
+    Given a new transformation matrix for the object, transform all the grasps for that object.
+
+    Parameters
+    ----------
+    grasp_dict : (dict) : the dictionary containing grasp data for the given object
+            - "tf"  : np.array() [num_grasps, 4, 4] 
+                4x4 transformation matrices of the object grasps
+            - "score" : np.array() [num_grasps]
+                The score of each grasp
+    tf : np.array() [4, 4]
+        New transformation matrix for the object
+    scale_to_millimeters : bool, optional
+        Scales the grasps coordinates from meters to millimeters, by default True
+    add_transform_score : bool, optional
+        Scales the score of the grasps based on their new orientation.
+        (grasp with z-axis pointing down get score of 0, grasp with z-axis pointing up get score of 1), by default True
+
+    Returns
+    -------
+    grasp_dict : (dict)
+        Updated grasp dictionary.
+    """
+
+    new_grasp_tf = []
+    new_grasp_scores = []
+    
+    grasp_tf = grasp_dict["tf"] # [num_grasps, 4, 4]
+    if np.shape(grasp_tf) == (0,):
+        return grasp_dict
+    grasp_tf = scale_grasp(grasp_tf)
+    # Calculate new tf for the grasp np.dot(tf, grasp_tf) 
+    new_grasp_tf = np.matmul(tf, grasp_tf)
+    # Calculate new grasp score
+    if add_transform_score:
+        temp_points = np.zeros((new_grasp_tf.shape[0], 4))
+        temp_points[:, -2] = 1
+        temp_points = np.einsum("ijk,ik->ij", new_grasp_tf, temp_points)
+        approach_vector = temp_points[:, -2]
+        new_grasp_scores = grasp_dict["scores"] * (0.5 + 0.5 * approach_vector)
+
+    grasp_dict["tf"] = new_grasp_tf
+    if add_transform_score:
+        grasp_dict["scores"] = new_grasp_scores
+
+    return grasp_dict
+
+def scale_grasp(grasp_tf, scale=0.001):
+    """Scale the xyz position of the grasp.
+
+    Parameters
+    ----------
+    grasp_tf : np.array() [(N), 4, 4]
+    scale : float, optional
+        New scale fro grasp, by default 0.001 (Meter to millimeter)
+
+    Returns
+    -------
+    grasp_tf: np.array() [4, 4]
+    """
+    if grasp_tf.ndim == 2:
+        grasp_tf[:3, 3] = grasp_tf[:3, 3] * scale
+    elif grasp_tf.ndim == 3:
+        grasp_tf[:, :3, 3] = grasp_tf[:, :3, 3] * scale
+    return grasp_tf
+
+def transform_point_array(point_arr, tf):
+    points = np.copy(point_arr)
+    temp = np.ones((points.shape[1]+1, points.shape[0]))
+    temp[0:3,:] = points.T
+    temp = np.dot(tf, temp)
+    return temp[0:3, :].T

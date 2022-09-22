@@ -1,7 +1,5 @@
 
 import os
-import sys
-import glob
 import trimesh
 import trimesh.path
 import trimesh.transformations as tra
@@ -10,20 +8,16 @@ import random
 import time
 import signal
 import argparse
-import importlib.util
-import traceback
 
 from os import walk
-from trimesh.permutate import transform
+# from trimesh.permutate import transform
 from multiprocessing import freeze_support
 
-import grasp_utils
+from util.render_utils import transform_grasp
+from util.dataset_utils import get_eval_obj_names, get_data_paths, load_scene_data, load_mesh, load_grasp
+import util.utils as utils
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(BASE_DIR)
-
-import utils
-import SuctionModel.suction_cup_imaging as sci
+import trimeshVisualize
 
 
 class Scene(object):
@@ -172,14 +166,19 @@ class TableScene(Scene):
         super().__init__()
 
         self.splits = splits # Train or test data
+        print(gripper_path)
         if gripper_path != None:
             tf = trimesh.geometry.align_vectors(np.array([0, 0, 1]), np.array([0, 0, -1]))
-            self.gripper_mesh = trimesh.load(os.path.join(BASE_DIR, gripper_path), force="mesh")
+            #self.gripper_mesh = trimesh.load(os.path.join(BASE_DIR, gripper_path), force="mesh")
+            self.gripper_mesh = trimesh.load(gripper_path, force="mesh")
             self.gripper_mesh.apply_transform(tf)
             self.gripper_mesh = self.gripper_mesh.apply_scale(0.001)
+            print("Gripper mesh loaded")
         else:
-            gripper_tf = trimesh.transformations.translation_matrix(np.array([0,0, 1.0]))
-            self.gripper_mesh = trimesh.primitives.Cylinder(radius=0.1, height=2, transform = gripper_tf)
+            tf = trimesh.transformations.translation_matrix(np.array([0,0, 0.6]))
+            self.gripper_mesh = trimesh.primitives.Cylinder(radius=0.1, height=1, transform = tf)
+            self.gripper_mesh = self.gripper_mesh.apply_scale(0.001)
+            print("Gripper mesh loaded 2")
 
         # Table
         self._table_dims = [1.0, 1.2, 0.6]
@@ -191,8 +190,8 @@ class TableScene(Scene):
         # Obj meshes
         self.data_dir = data_dir
         
-        self.obj_dict = get_objects_dict(self.data_dir)
-        self.meshes_root, self.grasps_root = utils.get_data_paths(self.data_dir)
+        self.obj_dict = get_eval_obj_names(self.data_dir)
+        self.meshes_root, self.grasps_root = get_data_paths(self.data_dir)
         self.splits = splits
         #self.data_splits = load_splits(root_folder)
         #self.category_list = list(self.data_splits.keys())
@@ -240,9 +239,9 @@ class TableScene(Scene):
             raise Exception("Not enough unique objects found in dataset!!!")
 
         # load mesh
-        obj_mesh = utils.load_mesh(random_obj_name, self.meshes_root[self.splits])
+        obj_mesh = load_mesh(random_obj_name, self.meshes_root[self.splits])
         # load coresponding grasp
-        obj_grasp = utils.load_grasp(random_obj_name, self.grasps_root[self.splits])
+        obj_grasp = load_grasp(random_obj_name, self.grasps_root[self.splits])
 
         # mesh_mean = np.mean(obj_mesh.vertices, 0, keepdims=True)
         # obj_mesh.vertices -= mesh_mean
@@ -384,15 +383,19 @@ class TableScene(Scene):
         grasp_count = 0
 
         for obj_transform, object_grasp in zip(obj_transforms, object_grasps):
-            transformed_obj_grasp = grasp_utils.transform_grasp(object_grasp, obj_transform)
+
+            transformed_obj_grasp = transform_grasp(object_grasp, obj_transform)
+            # Expand first dimension to list of np arrays
+            transformed_obj_grasp["tf"] = list(transformed_obj_grasp["tf"])
+            transformed_obj_grasp["scores"] = list(transformed_obj_grasp["scores"])
 
             filtered_grasps = self._filter_colliding_grasps(transformed_obj_grasp)
-
             scene_filtered_grasps.append(filtered_grasps["tf"])
             scene_filtered_scores.append(filtered_grasps["scores"])
             grasp_count += len(filtered_grasps["tf"])
             obj_grasp_idcs.append(grasp_count)
 
+        
 
         scene_filtered_grasps = np.concatenate(scene_filtered_grasps, 0)
         scene_filtered_scores = np.concatenate(scene_filtered_scores, 0)
@@ -429,12 +432,38 @@ class TableScene(Scene):
         --------------
         """
         scene = self.as_trimesh_scene(display=False)
-        my_scene = sci.SuctionCupScene()
+        my_scene = trimeshVisualize.Scene()
 
-
-        my_scene.plot_grasp(tf, scores, units="meters")
+        for i in range(tf.shape[0]):
+            my_scene.plot_grasp(tf[i], scores[i], units="meters")
         my_scene.plot_coordinate_system(scale = 0.01)
         my_scene.display(my_scene=scene)
+        
+    def load_scene(self, scene_name, scenes_root_dir, visualize=False):
+        """
+        Loads the scene to the object
+        --------------
+        Arguments:
+            scene_name {str} : Name of the scene. (without extension)
+            scenes_root_dir {str} : A path to the directory where the scene is located
+        --------------
+        """
+        self.reset()
+
+        self.add_object('table', self.table_mesh, self._table_pose)
+        self._support_objects.append(self.table_support)
+
+        scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs = load_scene_data(
+            scene_name, scenes_root_dir)
+        
+
+        for obj, tf in zip(object_names, obj_transforms):
+            self.add_object(obj, load_mesh(obj,self.meshes_root[self.splits]), tf)
+            
+        if visualize:
+            self.visualize(scene_grasps_tf, scene_grasps_scores)
+
+        return scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs
 
     def save_scene(self, output_dir, scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs):
         """
@@ -477,174 +506,130 @@ class TableScene(Scene):
         self._poses = {}
         self._support_objects = []
 
-    def load_existing_scene(self, scene_name, scenes_root_dir):
-        """
-        Load the a pregenerated scene
-        --------------
-        Arguments:
-            scene_name {str} : Name of the scene. (without extension)
-            scenes_root_dir {str} : A path to the directory where the scene is located
-        --------------
-        """
-        self.reset()
-
-        self.add_object('table', self.table_mesh, self._table_pose)
-        self._support_objects.append(self.table_support)
-
-        scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs = utils.load_scene_3d(
-            scene_name, scenes_root_dir)
-        
-
-        for obj, tf in zip(object_names, obj_transforms):
-            self.add_object(obj, utils.load_mesh(obj,self.meshes_root[self.splits]), tf)
-
-        return scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs
-            
-
-def get_objects_dict(root_path):
-    split_dict = {}
-    split_paths = glob.glob(os.path.join(root_path, "meshes/*"))
-    split_paths = glob.glob(os.path.join(root_path, "grasps/*"))
-
-    for split in split_paths:
-        obj_category = os.path.basename(split)
-        test_train = glob.glob(f"{split}/*")
-        split_dict[obj_category] = [os.path.splitext(os.path.basename(obj_p))[
-                                    0] for obj_p in test_train]
-
-    return split_dict
-
-
-class SceneEvaluation_MC():
-    def __init__(self, root_folder, output_dir, gripper_path, splits, min_num_objects, max_num_objects, max_iterations) -> None:
-        self._root_folder = root_folder
+class SceneDatasetGenerator():
+    def __init__(self,
+                 data_dir,
+                 gripper_path,
+                 splits,
+                 min_num_objects = 8,
+                 max_num_objects = 13,
+                 max_iterations = 100,
+                 ) -> None:
+        self._data_dir = data_dir
         self._gripper_path = gripper_path
         self._splits = splits
-        self.output_dir = os.path.join(root_folder, output_dir, splits)
         self._min_num_objects = min_num_objects
         self._max_num_objects = max_num_objects
         self._max_iterations = max_iterations
         self.fails = []
-        pass
+        
+        self.save_dir =  os.path.join(os.path.join(self._data_dir, "scenes_3d"), self._splits)
+        
     
+    def generate_scene(self, scene_idx):
+        """Generate a scene with name = "scene_idx"
 
-    def evaluate_scene(self, scene_idx):
+        Parameters
+        ----------
+        scene_idx : int
+            The index used to name the scene. Object get selected randomly.
+
+        Returns
+        -------
+        Success : bool
+            Whether the scene was successfully generated.
+        """
         start_time = time.time()
         print(f"Evaluating scene {scene_idx}")
+        
         # Create scene
-        table_scene = TableScene(self._splits, self._gripper_path, self._root_folder)
+        table_scene = TableScene(self._splits, self._gripper_path, self._data_dir)
         table_scene.reset()
-        table_scene._scene_count = scene_idx
         num_objects = np.random.randint(self._min_num_objects, self._max_num_objects+1)
 
-        # Evaluate scene
+        
         try:
             scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs = table_scene.arrange(num_objects, self._max_iterations)
-            table_scene.save_scene(self.output_dir, scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs)
-            print(f"Evaluated scene {scene_idx}, time taken {time.time()-start_time}")
+            self.save_scene(scene_idx, self.save_dir, scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs)
+            print(f"Created scene {scene_idx}, time taken {time.time()-start_time}")
+            return True
         except:
+        
             self.fails.append(scene_idx)
-
-        return
-
-    def evaluate_all_scenes(self, n_processors, start_idx, end_idx, overwrite=False):
-        path_scenes = os.path.join(os.path.join(self._root_folder, "scenes_3d"), self._splits)
+            return False
+        
+    def generate_N_scenes(self, start_idx, end_idx, n_processors = 1, overwrite=False):
+        """Generate N scenes with names from start_idx to end_idx. Can be done in parallel.
+        
+        Args:
+        ----------
+        start_idx : int
+        end_idx : int
+        n_processors : int, optional
+            Number of processors to use, by default 1
+        overwrite : bool, optional
+            Whether to overwrite existing scenes, by default False
+        ----------
+        """
+        
+        path_scenes = os.path.join(os.path.join(self._data_dir, "scenes_3d"), self._splits)
+        
         existing_scenes = next(walk(path_scenes), (None, None, []))[2]
         existing_scenes = [int(os.path.splitext(os.path.basename(scene))[0]) for scene in existing_scenes]
 
         start_time = time.time()
         scene_list = list(range(start_idx, end_idx))
+        
         if overwrite == False:
             scene_list = [i for i in scene_list if i not in existing_scenes]
-        out = utils.run_multiprocessing(self.evaluate_scene,
-                                           scene_list, n_processors)
-        print(f"Evaluated {len(scene_list)} scenes, time taken {time.time()-start_time}")
-        print(f"Failed to evaluate {self.fails } scenes")
-        return
-
-def simple_main(args):
-    root_folder = args.root_folder
-    splits = args.splits
-    max_iterations = args.max_iterations
-    gripper_path = args.gripper_path
-    number_of_scenes = args.num_grasp_scenes
-    min_num_objects = args.min_num_objects
-    max_num_objects = args.max_num_objects
-    start_index = args.start_index
-    load_existing = args.load_existing
-    output_dir = args.output_dir
-    visualize = args.vis
-
-    table_scene = TableScene(splits, gripper_path, root_folder)
-    table_scene._scene_count = start_index
-    output_dir = os.path.join(root_folder, output_dir, splits)
-    print(f"Starting to generate {splits} data from {args.root_folder}.")
-    print(f"Generated data will be saved to {output_dir}")
-
-    while table_scene._scene_count < number_of_scenes:
-
-        table_scene.reset()
-
-        if load_existing is None:
-            start = time.time()
-            print(
-                f"generating {table_scene._scene_count} / {number_of_scenes}")
-            num_objects = np.random.randint(min_num_objects, max_num_objects+1)
-            scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs = table_scene.arrange(
-                num_objects, max_iterations)
-            if not visualize:
-                table_scene.save_scene(
-                    output_dir, scene_grasps_tf, scene_grasps_scores, object_names, obj_transforms, obj_grasp_idcs)
-            print(f"Time taken: {time.time() - start}")
+        if n_processors == 1:
+            for scene in scene_list:
+                self.generate_scene(scene)
         else:
-            scene_grasps_tf, scene_grasps_scores, scene_contacts, _, _ = table_scene.load_existing_scene(
-                load_existing, output_dir)
-            table_scene.visualize(scene_grasps_tf, scene_grasps_scores)
-            break
+            out = utils.run_multiprocessing(self.generate_scene,
+                                            scene_list, n_processors)
+        print(f"Evaluated {len(scene_list)} scenes, time taken {time.time()-start_time}")
+        print(f"Failed to evaluate {self.fails} scenes")
+        return True
+    
+    def save_scene(self, 
+                scene_idx,
+                save_dir,
+                scene_grasps_tf,
+                scene_grasps_scores,
+                object_names, obj_transforms,
+                obj_grasp_idcs):
+        """
+        Save the scene with its objects and grasps to a directory.
+        
+        Arguments:
+        --------------
+        scene_idx {int} : Scene index
+        output_dir {str} : Absolute path to where to save the scene
+        scene_grasps_tf {list} : A list of grasps "tf".
+        scene_grasps_scores {list} : A corresponding list of scores for individual grasps.
+        object_names {list} : List of object names in the scene
+        obj_transforms {list} : Transformation matrices for placing of individual objects
+        obj_grasp_idcs {list} : List of ints indicating to which object some grasps belong to.
+            
+        Output:
+        --------------
+        scene_info {dict} : A dictionary containing the scene information
+        """
+        # Make dir if it does not exist
+        if not os.path.exists(save_dir):
+            print(f"Output directory does not exist. Creating directory {save_dir}")
+            os.makedirs(save_dir)
 
-        if visualize:
-            table_scene.visualize(scene_grasps_tf, scene_grasps_scores)
-        table_scene._scene_count += 1
+        scene_info = {}
+        scene_info["scene_grasps_tf"] = scene_grasps_tf
+        scene_info["scene_grasps_scores"] = scene_grasps_scores
+        scene_info["object_names"] = object_names
+        scene_info["obj_transforms"] = obj_transforms
+        scene_info["obj_grasp_idcs"] = np.array(obj_grasp_idcs)
+        output_path = os.path.join(save_dir, f"{scene_idx:06d}.npz")
+        while os.path.exists(output_path):
+            self._scene_count += 1
+            output_path = os.path.join(save_dir, f"{scene_idx:06d}.npz")
+        np.savez(output_path, **scene_info)
 
-
-def mc_main(args):
-    evaluation_object = SceneEvaluation_MC(
-        args.root_folder,
-        args.output_dir,
-        args.gripper_path,
-        args.splits,
-        args.min_num_objects,
-        args.max_num_objects,
-        args.max_iterations)
-
-    evaluation_object.evaluate_all_scenes(8, 0, 800)
-
-if __name__ == "__main__":
-    freeze_support()
-
-    parser = argparse.ArgumentParser(description="Grasp data reader")
-    parser.add_argument('--root_folder', help='Root dir with grasps, meshes, mesh_contacts and splits',
-                         type=str, default="/home/jure/programming/SuctionCupModel/data/")
-    parser.add_argument('--splits', type=str, default='test')
-    parser.add_argument('--num_grasp_scenes', type=int, default=10)
-    parser.add_argument('--max_iterations', type=int, default=100)
-    parser.add_argument('--gripper_path', type=str,
-                        default="/home/jure/programming/SuctionCupModel/meshes/EPick_extend_sg_collision.stl")
-    parser.add_argument('--min_num_objects', type=int, default=8)
-    parser.add_argument('--max_num_objects', type=int, default=13)
-    parser.add_argument('--start_index', type=int, default=0, help = "Where to start indexing scenes. Use in case of continuing dataset generation.")
-    parser.add_argument('--load_existing', type=str, default=None)
-    parser.add_argument('--output_dir', type=str, default='scenes_3d')
-    parser.add_argument('--vis', dest='vis', action='store_true')
-    parser.add_argument('--no_vis', dest='vis', action='store_false')
-    parser.set_defaults(vis=False)
-    args = parser.parse_args()
-
-    #mc_main(args)
-    simple_main(args)
-
-    # my_scene = sci.SuctionCupScene()
-    # my_scene.plot_mesh(trimesh.load(os.path.join(BASE_DIR, "/home/jure/programming/SuctionCupModel/meshes/EPick_extend_sg_collision.stl"), force="mesh"))
-    # my_scene.display()
-
-# 16mm

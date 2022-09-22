@@ -7,11 +7,23 @@ import copy
 
 import trimesh.transformations as tra
 
-import render_utils
-
+from util import render_utils
 
 class SceneRenderer:
     def __init__(self, intrinsics=None, fov=np.pi / 6, caching=True, viewing_mode=False) -> None:
+        """
+        Class for rendering scenes.
+        
+        Arguments:
+        ----------
+        intrinsics {str} -- intrinsics of the camera. Can be one of the following:
+            - 'kinect_azure', 'realsense', 'zivid2'
+        fov {float} -- field of view of the camera
+            - only used if intrinsics is None
+        caching {bool} -- whether to cache loaded meshes
+        viewing_mode {bool} -- whether to use pyrender.Viewer for rendering
+        
+        """
 
         self._fov = fov
 
@@ -300,7 +312,3 @@ class SceneRenderer:
 
         return output, obj_names, pcs
 
-if __name__ == "__main__":
-    sr = SceneRenderer()
-    test = sr._load_object("/home/jure/programming/SuctionCupModel/data/meshes/train/A00_0.obj")
-    print(test)

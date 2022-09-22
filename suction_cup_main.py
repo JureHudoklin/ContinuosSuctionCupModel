@@ -10,13 +10,11 @@ import matplotlib.pyplot as plt
 from multiprocessing import freeze_support
 from os import close, path, walk
 
-import suction_cup_logic as scl
-import suction_cup_lib as sclib
+import suction_model.suction_cup_logic as scl
+import suction_model.suction_cup_lib as sclib
 from trimeshVisualize import Scene
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(BASE_DIR)
-import utils
+from util.dataset_utils import load_grasp, load_mesh
 
 
 def evaluate_object_set(root_dir,
@@ -171,11 +169,11 @@ def open_saved_grasp(obj_name, root_dir, splits="test", display = False):
     path_meshes = os.path.join(root_dir, f"meshes/{splits}")
     path_grasps = os.path.join(root_dir, f"grasps/{splits}")
 
-    grasp = utils.load_grasp(obj_name, path_grasps)
+    grasp = load_grasp(obj_name, path_grasps)
 
     if display:
         my_scene = Scene()
-        my_scene.plot_mesh(utils.load_mesh(obj_name, path_meshes, scale = 1))
+        my_scene.plot_mesh(load_mesh(obj_name, path_meshes, scale = 1))
         my_scene.plot_grasp(grasp["tf"], grasp["scores"])
         my_scene.display()
 
@@ -227,22 +225,23 @@ def test_contact_point(file_loc, test_point=np.array([0, 0, 0]), display_contact
 
 
 if __name__ == "__main__":
-    freeze_support()
+    #freeze_support()
     file_loc = "/home/jure/programming/SuctionCupModel/data/meshes/train/A01_0.obj"
     model_config = "/home/jure/programming/ContinuosSuctionCupModel/suction_model/configs/sm_30_config.yml"
 
     data_root_dir = "/home/jure/programming/SuctionCupModel/data"
 
-    if False:
+    if True:
         # Open an already evaluated object
-        open_saved_grasp("K21_0", root_dir=data_root_dir, splits="train", display=True)
+        grasp = open_saved_grasp("K21_0", root_dir=data_root_dir, splits="train", display=True)
+        print(grasp["tf"].shape)
 
     if False:
         # Test one point on a particular object
         file_loc = "/home/jure/programming/SuctionCupModel/data/meshes/train/A01_0.obj"
         test_contact_point(file_loc, test_point=np.array([10, 0, 30]), display_contact=True)
 
-    if True:
+    if False:
         # Evaluate a particular object #W02_0
         evaluate_object_one("H05_2",
                             config_path=model_config,
@@ -252,6 +251,6 @@ if __name__ == "__main__":
                             splits="train",
                             )
 
-    if True:
+    if False:
         # Evaluate a whole set of objects
         evaluate_object_set(root_dir = data_root_dir, config_path = model_config,  display = True, splits="train", save = False)

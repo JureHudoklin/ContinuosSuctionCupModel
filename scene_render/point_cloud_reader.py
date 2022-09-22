@@ -11,16 +11,9 @@ import trimesh
 import trimesh.transformations as tra
 import cv2
 
-import render_utils
-from grasp_utils import transform_grasp
-from scene_renderer import SceneRenderer
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(BASE_DIR)
-import utils
-
-#from pointnet2.utils import provider
-#from pointnet2.tf_ops.grouping import *
+from util.render_utils import inverse_transform
+from util.dataset_utils import load_scene_data
+from .scene_renderer import SceneRenderer
 
 
 def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
@@ -167,12 +160,12 @@ class PointCloudReader:
         PointCloudReader objects. Can take in a scene, render it and generate batch data of point clouds.
         --------------
         Arguments:
-            data_root_folder {str} -- Absolute path to where the "data" directory
+            data_root_folder {str} -- Absolute path to  the "data" directory
         Keyword arguments:
             splits {str} -- "train" or "test" depending on which data we want (default: "train")
             batch_size {int} -- The size og the batches we want (default: 1)
             raw_num_points {int} -- how many points should point clouds have (default: 20000)
-            intrinsics {dict} -- camera intrinsics (default: None)
+            intrinsics {dict} -- camera intrinsics (default: zivid2)
             use_uniform_quaternions {bool} -- Not yet implimented (default: False)
             elevation {tuple} -- How much the camera is tilted from vertical in degrees  (default: (-50,50))
             distance_range {tuple} -- The range of distance for the pose of camera from the table in m. (default: (3, 4.5))
@@ -211,7 +204,7 @@ class PointCloudReader:
         # y_axis - up in image space
 
         if use_uniform_quaternions:
-            print("NOT IMPLIMENTED")
+            raise NotImplementedError
         else:
             self._cam_orientations = []
             self._elevation = np.pi*np.array(elevation)/180.
@@ -347,7 +340,7 @@ class PointCloudReader:
             scene_3d_idx = np.random.randint(0, num_of_available_scenes)
 
         # Get the saved data for that 3d scene
-        scene_grasp_tf, scene_grasp_scores, object_names, obj_tf, obj_grasp_idcs = utils.load_scene_3d(
+        scene_grasp_tf, scene_grasp_scores, object_names, obj_tf, obj_grasp_idcs = load_scene_data(
             f"{scene_3d_idx:06d}", scenes_path)
 
         # Get paths to all objects in the scene
@@ -478,7 +471,7 @@ class PointCloudReader:
         for j in range(len(cam_poses)):
             cam_poses[j, :3, 1] = -cam_poses[j, :3, 1]
             cam_poses[j, :3, 2] = -cam_poses[j, :3, 2]
-            cam_poses[j] = render_utils.inverse_transform(cam_poses[j])
+            cam_poses[j] = inverse_transform(cam_poses[j])
 
 
         return cam_poses
@@ -502,7 +495,7 @@ class PointCloudReader:
         # Get the saved data for that 3d scene
         scenes_path = os.path.join(
             self._data_root_folder, "scenes_3d", self._splits)
-        scene_grasp_tf, scene_grasp_scores, object_names, obj_tf, obj_grasp_idcs = utils.load_scene_3d(
+        scene_grasp_tf, scene_grasp_scores, object_names, obj_tf, obj_grasp_idcs = load_scene_data(
             f"{scene_3d_idx:06d}", scenes_path)
 
         # Positives mask

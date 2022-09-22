@@ -12,7 +12,12 @@ import scene_render.create_table_top_scene as create_scene
 
 
 class DataGenerator(tf.keras.utils.Sequence):
-    def __init__(self, data_dir, batch_size, splits="train", threshold=0.05, search_radius = 0.008):
+    def __init__(self, 
+                 data_dir, 
+                 batch_size, 
+                 splits="train", 
+                 threshold=0.05, 
+                 search_radius = 0.008):
         """
         A data object that can be used to load scenes and generate point cloud batches for training .
         ----------
@@ -22,7 +27,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         Keyword Args:
             splits {str}: The splits to use for training. Can be "train" or "test"
             threshold {float}: The threshold for the ground truth scores. Valid grasps will be the ones that have the score higher than the threshold.
-            search_radius {float}: How for from the point cloud point we look for a valid grasp.
+            search_radius {float}: How for from the each point on point cloud we look for a valid grasp.
         ----------
         """
         self.data_dir = data_dir
@@ -31,10 +36,9 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.threshold = threshold
         self.search_radius = search_radius
 
-        # Get the ammount of available scenes
+        # Get the amount of available scenes
         self.scenes_3d_dir = os.path.join(os.path.join(os.path.join(self.data_dir, 'scenes_3d'), splits))
         self.num_of_scenes_3d = len(os.listdir(self.scenes_3d_dir))
-        #self.num_of_scenes = len(os.listdir(self.scenes_dir))
 
         # Create a pcr
         self.pcreader = pcr.PointCloudReader(
@@ -48,16 +52,16 @@ class DataGenerator(tf.keras.utils.Sequence):
             distance_range=(0.8, 1),  # How far away the camera is in m
             estimate_normals=False,
             depth_augm_config={"sigma": 0.001,
-                               "clip": 0.005, "gaussian_kernel": 0},  # clip = 0.005
+                               "clip": 0.005, "gaussian_kernel": 0},
             pc_augm_config={"occlusion_nclusters": 0,
-                            "occlusion_dropout_rate": 0.0, "sigma": 0.000, "clip": 0.005}  # clip = 0.005
+                            "occlusion_dropout_rate": 0.0, "sigma": 0.000, "clip": 0.005}  
         )
 
         # Scene order
         self.scene_order = np.arange(self.num_of_scenes_3d)
 
      
-    def __getitem__(self, index):
+    def __getitem__(self, idx):
         """
         Returns a batch of data from the scene given the index of the scene.
         ----------
@@ -72,84 +76,63 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         self.pcreader._renderer.create()
 
-        # --------- Format the input --------
-        if type(index) == int:
-            scene_list = [index]
-        elif type(index) == tuple:
-            scene_list = index
-        elif type(index) == slice:
-            if index.start is None:
-                start = 0
-            else:
-                start = index.start
-            if index.stop is None:
-                stop = self.num_of_scenes_3d
-            else:
-                stop = index.stop
-            if index.step is None:
-                step = 1
-            else:
-                step = index.step
-            scene_list = range(start, stop, step)
+        
 
         # ------ Prepare the output arrays -------
-        out_len = len(scene_list)
         pc_numpy = np.empty(
-            [out_len, self.batch_size, self.pcreader._raw_num_points, 3])
+            [self.batch_size, self.pcreader._raw_num_points, 3])
         # Binary mask for each point
         gt_scores = np.empty(
-            [out_len, self.batch_size, self.pcreader._raw_num_points])
+            [self.batch_size, self.pcreader._raw_num_points])
         # Approach vectors for positive points
         gt_approach = np.empty(
-            [out_len, self.batch_size, self.pcreader._raw_num_points, 3])
+            [self.batch_size, self.pcreader._raw_num_points, 3])
 
 
-        for i, scene in enumerate(scene_list):
-            # Generate batch data
-            scene = self.scene_order[scene]
-            batch_data, cam_poses, scene_idx, batch_segmap, obj_pcs_batch = self.pcreader.get_scene_batch(
-                scene)
-            self.pcreader._renderer.destroy()
+        # Generate batch data
+        scene = self.scene_order[idx]
+        batch_data, cam_poses, scene_idx, batch_segmap, obj_pcs_batch = self.pcreader.get_scene_batch(
+            scene)
+        self.pcreader._renderer.destroy()
 
-            # Get camera tf to world frame
-            world_to_cam = self.pcreader.pc_convert_cam(cam_poses)
+        # Get camera tf to world frame
+        world_to_cam = self.pcreader.pc_convert_cam(cam_poses)
 
-            # Compbine object PC's to one PC
-            pc_segmap = []
-            for obj_pcs in obj_pcs_batch:
-                pc_objects = None
-                for pc in obj_pcs:
-                    if pc_objects is None:
-                        pc_objects = pc[:,0:3]
-                    else:
-                        pc_objects = np.append(pc_objects, pc[:, 0:3], axis=0)
-                pc_segmap.append(pc_objects)
+        # Compbine object PC's to one PC
+        pc_segmap = []
+        for obj_pcs in obj_pcs_batch:
+            pc_objects = None
+            for pc in obj_pcs:
+                if pc_objects is None:
+                    pc_objects = pc[:,0:3]
+                else:
+                    pc_objects = np.append(pc_objects, pc[:, 0:3], axis=0)
+            pc_segmap.append(pc_objects)
 
-            # Convert all point clouds to world frame (to find GT)
-            pc_segmap = self.pcreader.pc_to_world(
-                pc_segmap, cam_poses)
+        # Convert all point clouds to world frame (to find GT)
+        pc_segmap = self.pcreader.pc_to_world(
+            pc_segmap, cam_poses)
 
-            batch_data = self.pcreader.pc_to_world(
-                batch_data, cam_poses)
+        batch_data = self.pcreader.pc_to_world(
+            batch_data, cam_poses)
 
-            # Get ground truth
-            gt_scores[i], gt_approach[i] = self.pcreader.get_ground_truth(
-                batch_data, scene_idx, pc_segmap=pc_segmap, threshold=self.threshold, search_radius=self.search_radius)
-            pc_numpy[i] = batch_data
-            
-            # Convert back to OpenCV camera frame
-            for batch_idx in range(self.batch_size):
-                # Make homogenous PC
-                batch_pc_hom = np.ones((len(gt_scores[i, batch_idx]), 4))
-                batch_pc_hom[:, :3] = pc_numpy[i, batch_idx]
-
-                pc_numpy[i, batch_idx] = np.dot(
-                    world_to_cam[batch_idx], batch_pc_hom.T).T[:, 0: 3]
-                gt_approach[i, batch_idx] = np.dot(
-                    world_to_cam[batch_idx, 0:3, 0:3], gt_approach[i, batch_idx].T).T[:, 0: 3]
-
-            self.lb_cam_inverse = world_to_cam
+        # Get ground truth
+        gt_scores, gt_approach = self.pcreader.get_ground_truth(
+            batch_data, scene_idx, pc_segmap=pc_segmap, threshold=self.threshold, search_radius=self.search_radius)
+        pc_numpy = batch_data
         
+        # Convert back to OpenCV camera frame
+        for batch_idx in range(self.batch_size):
+            # Make homogenous PC
+            batch_pc_hom = np.ones((len(gt_scores[batch_idx]), 4))
+            batch_pc_hom[:, :3] = pc_numpy[batch_idx]
+
+            pc_numpy[batch_idx] = np.dot(
+                world_to_cam[batch_idx], batch_pc_hom.T).T[:, 0: 3]
+            gt_approach[batch_idx] = np.dot(
+                world_to_cam[batch_idx, 0:3, 0:3], gt_approach[batch_idx].T).T[:, 0: 3]
+
+        self.lb_cam_inverse = world_to_cam
         
         pc_tensor = tf.convert_to_tensor(pc_numpy, dtype=tf.float32)
         pc_tensor = tf.squeeze(pc_tensor)
@@ -228,7 +211,14 @@ class DataGenerator(tf.keras.utils.Sequence):
 if __name__ == "__main__":
     dg = DataGenerator("/home/jure/programming/SuctionCupModel/data", 3, splits="train", threshold=0.2, search_radius=0.003)
 
-    pc_batch, (gt_score, gt_approach) = dg[2]
+
+    from util.network_utils import visualize_network_input
+
+
+    pc, gt = dg[2]
+    visualize_network_input(pc, gt)
+    
+    exit()
 
     my_scene = sci.SuctionCupScene()
     my_scene.plot_coordinate_system(scale=0.01)

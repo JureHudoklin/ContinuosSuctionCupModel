@@ -18,8 +18,8 @@ from scipy import optimize
 from scipy.integrate import trapz
 from numpy import gradient
 
-import suction_cup_functions as scf
-from trimeshVisualize import Scene
+from . import suction_cup_functions as scf
+
 
 # Params
 # --------------------------------------------------

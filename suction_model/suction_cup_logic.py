@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 import trimesh
 import time
 import numpy as np
@@ -11,12 +9,10 @@ from scipy.spatial import cKDTree
 from trimeshVisualize import Scene
 
 
-import suction_cup_lib as sclib
-import suction_cup_functions as scf
+from . import suction_cup_lib as sclib
+from . import suction_cup_functions as scf
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(BASE_DIR)
-import utils
+from util.utils import run_multiprocessing
 
 # BELOW ARE THE FUNCTIONS FOR EVALUATIONG THE WHOLE MODEL
 class EvaluateMC():
@@ -101,7 +97,7 @@ class EvaluateMC():
             self.obj_model.mesh, self._number_of_points, self._point_sample_radius)
 
         if self._multiprocessing:
-            out = utils.run_multiprocessing(self.evaluate_one_point_MP,
+            out = run_multiprocessing(self.evaluate_one_point_MP,
                                             zip(samples, face_id), self.n_processors)
         else:
             out = []
