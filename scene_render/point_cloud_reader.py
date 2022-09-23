@@ -515,6 +515,7 @@ class PointCloudReader:
         gt_score = np.full([pc.shape[0], pc.shape[1]], -1, dtype=np.int32)
         # Make the output array for approach
         gt_approach = np.zeros([pc.shape[0], pc.shape[1], 3])
+        gt_approach[..., 2] = 1
 
         for i in range(len(pc)):
             my_tree = cKDTree(pc[i])

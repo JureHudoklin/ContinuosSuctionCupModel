@@ -6,10 +6,11 @@ import sys
 import numpy as np
 import tensorflow as tf
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(os.path.join(BASE_DIR, 'pointnet2-tensorflow2'))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(ROOT_DIR, 'pointnet2-tensorflow2'))
 from pnet2_layers.layers import Pointnet_SA, Pointnet_SA_MSG, Pointnet_FP
 from pnet2_layers.cpp_modules import select_top_k
+
 
 
 # add config as arg later
@@ -203,13 +204,13 @@ def approach_loss_fn(gt_approach, pred_approach):
 @tf.function
 def loss_fn(gt_scores, pred_scores, gt_approach, pred_approach, max_k=256):
     """
-    Given formated ground truth boxes and network output, calculate score and approach loss.
+    Given formatted ground truth boxes and network output, calculate score and approach loss.
     --------------
     Args:
-        gt_scores (tf.Tensor) : Ground truth scores. (B, 2048)
-        pred_scores (tf.Tensor) : Predicted scores. (B, 2048)
-        gt_approach (tf.Tensor) : Ground truth approach vectors. (B, 2048, 3)
-        pred_approach (tf.Tensor) : Predicted approach vectors. (B, 2048, 3)
+        gt_scores (tf.Tensor) : Ground truth scores. (B, N)
+        pred_scores (tf.Tensor) : Predicted scores. (B, N)
+        gt_approach (tf.Tensor) : Ground truth approach vectors. (B, N, 3)
+        pred_approach (tf.Tensor) : Predicted approach vectors. (B, N, 3)
     Keyword Args:
         max_k (int) : Amount of points to use for the score loss.
     --------------
@@ -292,8 +293,8 @@ class SuctionGraspNet(tf.keras.models.Model):
         self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
 
         mask_scores = tf.where(score_target != -1, 1, 0)
-        #score_target = tf.where(score_target == -1, 0, score_target)
         mask_scores_exp = tf.expand_dims(mask_scores, -1)
+        
         # update loss and metric trackers
         self.grasp_score_acc_tracker.update_state(
             score_target, score_output, sample_weight=mask_scores_exp)

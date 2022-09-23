@@ -156,7 +156,6 @@ class DataGenerator(tf.keras.utils.Sequence):
         
 
     def __len__(self):
-        return 100
         return self.num_of_scenes_3d
 
     def shuffle(self):
@@ -209,7 +208,9 @@ class DataGenerator(tf.keras.utils.Sequence):
 
 
 if __name__ == "__main__":
-    dg = DataGenerator("/home/jure/programming/SuctionCupModel/data", 3, splits="train", threshold=0.2, search_radius=0.003)
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(root_dir, 'data')
+    dg = DataGenerator(data_dir, 3, splits="train", threshold=0.2, search_radius=0.003)
 
 
     from util.network_utils import visualize_network_input

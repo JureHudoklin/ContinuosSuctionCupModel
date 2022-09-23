@@ -1,0 +1,84 @@
+LR: 0.001
+DECAY: 5.0e-05
+BATCH_SIZE: 3
+EPOCH: 20
+SAVE_BEST_ONLY: true
+
+RAW_NUM_POINTS: 20000
+NUM_POINTS: 2048
+
+SA_NPOINT_0: 2048
+SA_NSAMPLE_LIST_0:
+- 32
+- 64
+- 128
+SA_RADIUS_LIST_0:
+- 0.02
+- 0.04
+- 0.08
+SA_MLP_LIST_0:
+- - 32
+  - 32
+  - 64
+- - 64
+  - 64
+  - 128
+- - 64
+  - 96
+  - 128
+
+SA_NPOINT_1: 512
+SA_RADIUS_LIST_1:
+- 0.04
+- 0.08
+- 0.16
+SA_NSAMPLE_LIST_1:
+- 64
+- 64
+- 128
+SA_MLP_LIST_1:
+- - 64
+  - 64
+  - 128
+- - 128
+  - 128
+  - 256
+- - 128
+  - 128
+  - 256
+
+SA_NPOINT_2: 128
+SA_RADIUS_LIST_2:
+- 0.08
+- 0.016
+- 0.32
+SA_NSAMPLE_LIST_2:
+- 64
+- 64
+- 128
+SA_MLP_LIST_2:
+- - 64
+  - 64
+  - 128
+- - 128
+  - 128
+  - 256
+- - 128
+  - 128
+  - 256
+
+SA_MLP_GROUP_ALL:
+- 256
+- 512
+- 1024
+
+FP_MLP_0:
+- 256
+- 256
+FP_MLP_1:
+- 256
+- 128
+FP_MLP_2:
+- 128
+- 128
+- 128
