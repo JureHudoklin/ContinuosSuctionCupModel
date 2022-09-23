@@ -49,10 +49,16 @@ RUN apt-get update && \
 # setup sources.list
 RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu `lsb_release -cs` main" > /etc/apt/sources.list.d/ros-latest.list' && \
     curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add - && \
-    apt-get update && apt-get install -y ros-noetic-ros-base && \
-    apt-get install -y python3-rosinstall && \
-    apt install -y python3-rosdep && \
-    rosdep init && \
+    apt-get update && apt-get install -y ros-noetic-ros-base
+    
+RUN apt-get install -y python3-rosinstall \
+    python3-rosdep \
+    python3-rosinstall \
+    python3-rosinstall-generator \
+    python3-wstool  \ 
+    build-essential 
+
+RUN rosdep init && \
     rosdep update
 
 
@@ -65,13 +71,13 @@ RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu `lsb_release -cs` main" 
 USER $USER
 RUN rosdep fix-permissions && rosdep update
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
-# RUN /bin/bash -c "source ~/.bashrc",
+RUN /bin/bash -c "source ~/.bashrc"
 
 WORKDIR /home/$USER
 RUN mkdir -p ~/catkin_ws/src && \
     cd ~/catkin_ws && \
-    catkin_make && \
-    echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+    . /opt/ros/noetic/setup.sh && \
+    catkin_make
 
 # Pull git-hub packages
 WORKDIR /home/$USER
@@ -79,15 +85,21 @@ RUN mkdir packages && \
     cd packages && \
     git clone https://github.com/JureHudoklin/trimesh_visualize.git && \
     cd trimesh_visualize && \
-    pip3 install -r requirements.txt && \
+    pip install -r requirements.txt && \
     pip install -e .
 
 WORKDIR /home/$USER
 RUN cd ~/catkin_ws/src && \
-    git clone https://github.com/JureHudoklin/ContinuosSuctionCupModel.git && \
+    git clone --recurse https://github.com/JureHudoklin/ContinuosSuctionCupModel.git && \
+    cd ContinuosSuctionCupModel && \
+    pip install -r requirements.txt && \
     cd ~/catkin_ws && \
+    . /opt/ros/noetic/setup.sh && \
     catkin_make
 
+WORKDIR /home/$USER/catkin_ws/src/ContinuosSuctionCupModel/pointnet2-tensorflow2
+RUN chmod u+x tf_ops/compile_ops.sh && \
+    tf_ops/compile_ops.sh
 
 # Expose Jupyter 
 EXPOSE 8888
