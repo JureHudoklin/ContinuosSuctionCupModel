@@ -1,0 +1,3 @@
+[submodule "pointnet2_tensorflow2"]
+	path = network/pointnet2_tensorflow2
+	url = https://github.com/JureHudoklin/pointnet2_tensorflow2.git
