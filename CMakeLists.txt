@@ -8,10 +8,15 @@ project(continous_suction_cup_model)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  rospy
+    roscpp
+    rospy
+    std_msgs
+    sensor_msgs
+    geometry_msgs
+    message_generation
 )
 
-## System dependencies are found with CMake's conventions
+## System depende ncies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 
@@ -45,18 +50,16 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  SuctionGrasp.msg
+)
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  SuctionGraspNetPlanner.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -66,10 +69,12 @@ catkin_python_setup()
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -101,10 +106,8 @@ catkin_python_setup()
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES continous_suction_cup_model
-#  CATKIN_DEPENDS rospy
-#  DEPENDS system_lib
+  CATKIN_DEPENDS message_runtime
+  CATKIN_DEPENDS rospy
 )
 
 ###########
@@ -114,9 +117,9 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
 )
+
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

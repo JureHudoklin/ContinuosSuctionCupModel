@@ -28,7 +28,7 @@ def visualize_network_input(pc, gt, scene = None, return_scene = False):
         pc, gt_scores, gt_app = pc[0], gt_scores[0], gt_app[0]
 
     grasp_tf = grasps_to_tf(pc, gt_app)
-    if scene is None
+    if scene is None:
         my_scene = Scene()
     my_scene.plot_point_cloud(pc, color=[0, 255, 0, 255])
     my_scene.plot_grasp(grasp_tf, gt_scores, color=[100, 255, 0, 255])
@@ -62,7 +62,7 @@ def visualize_network_output(pc, score, app, scene = None, return_scene = False)
 
     grasp_tf = grasps_to_tf(pc, app)
    
-    if scene is None
+    if scene is None:
         my_scene = Scene()
     my_scene.plot_point_cloud(pc, color=[0, 0, 255, 255])
     my_scene.plot_grasp(grasp_tf, score, color=[100, 0, 255, 255])

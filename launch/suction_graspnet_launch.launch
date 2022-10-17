@@ -1,0 +1,17 @@
+<launch>
+    <!-- Run grasp planner -->
+    <arg name="ckpt_dir" default="$(find suction_grasp_estimation)checkpoints/suction_grasp_net_30" doc="Log dir [default: checkpoints/suction_grasp_net_30]" />
+    <arg name="z_min" default="0.1" doc="Z min value threshold to crop the input point cloud" />
+    <arg name="z_max" default="2.0" doc="Z max value threshold to crop the input point cloud" />
+    <arg name="top_k" default="-1" doc="Number of grasps per object to return. If -1 to return all grasps." />
+    <arg name="visualize" default="true" doc="Visualize the grasps in Rviz. The request must contain camera Pose information" />
+
+    <node pkg="continous_suction_cup_model" type="suction_graspnet_ros.py" name="suction_graspnet" output="screen" >
+        <param name="ckpt_dir" type="str" value="$(arg ckpt_dir)" />
+        <param name="z_min" type="double" value="$(arg z_min)" />
+        <param name="z_max" type="double" value="$(arg z_max)" />
+        <param name="top_k" type="int" value="$(arg top_k)" />
+        <param name="visualize" type="bool" value="$(arg visualize)" />
+    </node>
+
+</launch>

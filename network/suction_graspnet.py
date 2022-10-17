@@ -7,9 +7,12 @@ import numpy as np
 import tensorflow as tf
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-from .pointnet2_tensorflow2.pnet2_layers.layers import Pointnet_SA, Pointnet_SA_MSG, Pointnet_FP
-from .pointnet2_tensorflow2.pnet2_layers.cpp_modules import select_top_k
-
+try:
+    from . pointnet2_tensorflow2.pnet2_layers.layers import Pointnet_SA, Pointnet_SA_MSG, Pointnet_FP
+    from . pointnet2_tensorflow2.pnet2_layers.cpp_modules import select_top_k
+except:
+    from pointnet2_tensorflow2.pnet2_layers.layers import Pointnet_SA, Pointnet_SA_MSG, Pointnet_FP
+    from pointnet2_tensorflow2.pnet2_layers.cpp_modules import select_top_k
 
 
 # add config as arg later
