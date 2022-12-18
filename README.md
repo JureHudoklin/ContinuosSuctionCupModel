@@ -1,4 +1,7 @@
 # ContinuousSuctionCupModel
+
+Simulate and estimate suction grasps.
+
 ## Contents
 - [ContinuousSuctionCupModel](#continuoussuctioncupmodel)
   * [Requirements](#requirements)
