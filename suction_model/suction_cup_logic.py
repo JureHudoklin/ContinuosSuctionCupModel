@@ -5,6 +5,7 @@ import time
 import numpy as np
 import scipy.spatial as ss
 
+from typing import List, Tuple, Union, Optional, Dict, Any
 from scipy.spatial import cKDTree
 from trimeshVisualize import Scene
 
@@ -17,14 +18,14 @@ from util.utils import run_multiprocessing
 # BELOW ARE THE FUNCTIONS FOR EVALUATIONG THE WHOLE MODEL
 class EvaluateMC():
     def __init__(self,
-                 obj_model,
-                 n_processors=8,
-                 number_of_points=500,
-                 point_sample_radius=2.5,
-                 multiprocessing=True,
-                 neighboor_average=5,
-                 noise_samples=10,
-                 noise_cone_angle=0.2):
+                 obj_model: sclib.ModelData,
+                 n_processors: int = 8,
+                 number_of_points: int = 500,
+                 point_sample_radius: float = 2.5,
+                 multiprocessing: bool = True,
+                 neighboor_average: int = 5,
+                 noise_samples: int = 10,
+                 noise_cone_angle: float = 0.2) -> None:
         """
         Class used to evaluate grasps on an object
         --------------
@@ -58,7 +59,10 @@ class EvaluateMC():
         self._noise_samples = noise_samples
         self._noise_cone_angle = noise_cone_angle
 
-    def evaluate_one_point_MP(self, inp_vec, evaluate_for_force=True):
+    def evaluate_one_point_MP(self,
+                              inp_vec: Tuple[np.ndarray, int],
+                              evaluate_for_force: bool = True
+                              ) -> List:
         """
         Evaluate one point on the object
         --------------
@@ -89,7 +93,7 @@ class EvaluateMC():
         else:
             return [suction_contact.p_0, suction_contact.p_0_n, a_v, contact_score,  0.]
 
-    def evaluate_model(self, display = False):
+    def evaluate_model(self, display: bool = False) -> Dict:
         start = time.time()
 
         # Sample points:
@@ -124,7 +128,9 @@ class EvaluateMC():
 
         return out_formated
 
-    def _format_output(self, out):
+    def _format_output(self,
+                       out: List
+                       ) -> Tuple[Dict, Dict]:
         """
         Format the output from the evaluation
         --------------
@@ -204,7 +210,41 @@ class EvaluateMC():
         return formated_grasps, final_output
 
 
-def suction_force_limits(file_loc, con_p, force_direction = None, vac_min = 0.020, vac_max = 0.065, increment = 0.005, n = 30):
+def suction_force_limits(file_loc: str,
+                         con_p: np.ndarray,
+                         force_direction: Optional[np.ndarray] = None,
+                         vac_min: float = 0.020,
+                         vac_max: float = 0.065,
+                         increment: float = 0.005,
+                         ) -> np.ndarray:
+    """ Test an object for suction force limits
+
+    Parameters
+    ----------
+    file_loc : str
+        File location of the object
+    con_p : np.ndarray
+        Contact point coordinates. Cloasest point on the mesh from  this point will be used as the contact point
+    force_direction : Optional[np.ndarray], optional
+        The direction in which the pull away force acts. If none the surface normal is used, by default None
+    vac_min : float, optional
+        Minimum vacuum level to test for, by default 0.020
+    vac_max : float, optional
+        Maximum vacuum level to test for, by default 0.065
+    increment : float, optional
+        At what vacuum increment to test for, by default 0.005
+
+    Returns
+    -------
+    np.ndarray
+        A (N, 2) array containing the vacuum level and the force at that vacuum level
+
+    Raises
+    ------
+    Exception
+        If the suction contact fails to initialize. This can happen if the perimeter can not be found (do not know why this happens).
+    """
+    
 
     obj_model = sclib.ModelData(file_loc)
     # Initiate contact
@@ -237,7 +277,10 @@ def suction_force_limits(file_loc, con_p, force_direction = None, vac_min = 0.02
 
     return np.array(results)
 
-def contact_test_forces(suction_contact, obj_model, vac_level=0.07, **kwargs):
+def contact_test_forces(suction_contact: sclib.SuctionContact,
+                        obj_model: sclib.ModelData,
+                        vac_level: float = 0.07,
+                        **kwargs) -> float:
     """
     Test the given suction contact for resistance to external forces. The score is the volume of "wrench space"
     --------------
@@ -302,32 +345,33 @@ def contact_test_forces(suction_contact, obj_model, vac_level=0.07, **kwargs):
     return convex_hull.volume
 
 
-def contact_test_seal(con_p, obj_model, a_v=None, noise_samples=5, noise_cone_angle=0.1):
-    """
-    Tests whether the given contact point can form a seal or not.
-    --------------
-    - Arguments:
-        - n {int}
-            - Amount of points we want / 2
-        - con_p {np.array(3,)}
-            - Point on the model we want to contact
-        - obj_model {ModelData}
-            - Object containing model parameters   
-    - Kwargs:
-        - a_v {np.array(3,)} : Default = None
-            - The approach vector for the contact. If none is given -average_normal is used.
-        - noise_sample {int} : Default = 5 
-            - For how many different vectors with added noise to test the point. If 0 no noise is added
-        - noise_cone_angle {float} : Default = 0.1
-            - The max angle between the normal and the noise vector.
-    --------------
-    - Return:
-        - suction_contact : SuctionContact()
-            Returned suction contact object
-        - contact_success : float
-            The seal score for the given contact: -1 in case of failure; [0,1] valid seal score.
-        - a_v {np.array(3,)}
-            - The approach vector for which the contact was tested
+def contact_test_seal(con_p: np.ndarray,
+                      obj_model: sclib.ModelData,
+                      a_v: Optional[np.ndarray] = None,
+                      noise_samples: int = 5,
+                      noise_cone_angle: float = 0.1,
+                      ) -> Tuple[sclib.SuctionContact, float, Union[np.ndarray, None]]:
+    """ Tests whether the given contact point can form a seal or not.
+
+    Parameters
+    ----------
+    con_p : np.ndarray
+        _description_
+    obj_model : sclib.ModelData
+        _description_
+    a_v : Optional[np.ndarray], optional
+        _description_, by default None
+    noise_samples : int, optional
+        _description_, by default 5
+    noise_cone_angle : float, optional
+        _description_, by default 0.1
+
+    Returns
+    -------
+    Tuple[sclib.SuctionContact, float, Union[np.ndarray, None]]
+        - Returned suction contact object
+        - The seal score for the given contact: -1 in case of failure; [0,1] valid seal score.
+        - The approach vector for which the contact was tested. None if there is an invalid contact.
     """
     
     # Initiate contact

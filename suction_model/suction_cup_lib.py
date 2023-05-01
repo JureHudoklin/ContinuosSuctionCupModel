@@ -12,6 +12,7 @@ import yaml
 import os
 import inspect
 
+from typing import Optional
 from scipy.interpolate import splprep, splev
 from scipy import interpolate
 from scipy import optimize
@@ -50,9 +51,32 @@ class ModelData():
         "per_points": per_points
     }
 
-    def __init__(self, mesh_location, load_path = None, *args, **kwargs):
+    def __init__(self,
+                 mesh_location: str, 
+                 load_path: Optional[str] = None,
+                 *args,
+                 **kwargs):
+        """ A class for storing the mesh and suction cup parameters / properties.
+
+        Parameters
+        ----------
+        mesh_location : str
+            Path to the mesh file (obj, stl, ply, etc.)
+        load_path : Optional[str], optional
+            A path to a config specifying the suction cup parameters, by default None
+            
+        Keyword Arguments
+        ----------
+        units : tuple(str, str)
+            A tuple containing the units of the mesh, and the units we want to convert to. IE ("meters", "millimeters")
+            Suction cup model has only been tested with meshes in millimeters. !!!!!
+        subdivide : bool
+            If true, the mesh will be subdivided. This is useful for low resolution meshes.
+        """
         self.mesh = trimesh.load(mesh_location, force='mesh')
         if "units" in kwargs:   # Convert mesh to correct units
+            if kwargs["units"][1] == "meters":
+                print("WARNING: Suction cup model has only been tested with meshes in millimeters.")
             self.mesh.units = kwargs["units"][0]
             self.mesh.convert_units(kwargs["units"][1])
         if "subdivide" in kwargs:   # Subdivide the mesh
@@ -71,7 +95,6 @@ class ModelData():
         self.heatmap = False
 
     def save_config(self, path, name):
-
         with open(os.path.join(path, name) + ".yml", "w") as yaml_file:
             yaml.dump(self.config_dict, yaml_file, default_flow_style=False)
         print("Saved config:")
